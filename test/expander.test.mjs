@@ -85,3 +85,46 @@ test('expands commands after CRLF separators', () => {
   const result = ExpandCommandTokens('a\r\n/review', C_Index)
   assert.equal(result.text, 'a\r\n\nREVIEW_BODY\n')
 })
+
+test('does not expand inside a fenced code block', () => {
+  const text = '示例：\n```text\n/review\n```\n结束'
+  const result = ExpandCommandTokens(text, C_Index)
+  assert.equal(result.text, text)
+  assert.equal(result.changed, false)
+})
+
+test('expands outside fences but not inside them', () => {
+  const text = '请 /review\n```\n/fix\n```\n再 /fix'
+  const result = ExpandCommandTokens(text, C_Index)
+  assert.equal(result.text, '请 \nREVIEW_BODY\n\n```\n/fix\n```\n再 \nFIX_BODY\n')
+  assert.deepEqual(result.applied, ['review', 'fix'])
+})
+
+test('does not expand inside a same-line backtick span', () => {
+  const text = '请 `x /review` 或 /review'
+  const result = ExpandCommandTokens(text, C_Index)
+  assert.equal(result.text, '请 `x /review` 或 \nREVIEW_BODY\n')
+  assert.deepEqual(result.applied, ['review'])
+})
+
+test('does not expand inside a double-backtick span', () => {
+  const text = '`` x /review `` 与 /review'
+  const result = ExpandCommandTokens(text, C_Index)
+  assert.equal(result.text, '`` x /review `` 与 \nREVIEW_BODY\n')
+})
+
+test('supports tilde fences and unclosed fences', () => {
+  assert.equal(ExpandCommandTokens('~~~\n/review\n~~~', C_Index).changed, false)
+  assert.equal(ExpandCommandTokens('```\n/review', C_Index).changed, false)
+})
+
+test('a shorter fence does not close a longer one', () => {
+  const text = '````\n/review\n```\n/review\n````'
+  assert.equal(ExpandCommandTokens(text, C_Index).changed, false)
+})
+
+test('recognizes indented and language-tagged fences', () => {
+  const text = '  ```js\n/review\n  ```\n/review'
+  const result = ExpandCommandTokens(text, C_Index)
+  assert.equal(result.text, '  ```js\n/review\n  ```\n\nREVIEW_BODY\n')
+})
