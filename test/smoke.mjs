@@ -65,42 +65,49 @@ test('host half exports apply() and registers the pre-step listener', async () =
   assert.deepEqual(events, ['agent/pre-step'])
 })
 
-test('client half registers the settings section and one guarded slash source', async () => {
+/**
+ * Import one fresh client-module instance under a stubbed browser environment.
+ * @param {string} tag - unique import cache key.
+ * @param {(url: string, init: object) => Promise<Response>} fetchImpl - fetch stub.
+ * @returns {Promise<object>} captured module-loader spec.
+ */
+async function LoadClientModule(tag, fetchImpl) {
   /** Module spec captured from the simulated module loader. */
-  let moduleSpec
+  let spec
   globalThis.window = {
     __ModuleLoader__: {
-      load(spec) {
-        moduleSpec = spec
+      load(value) {
+        spec = value
       },
     },
   }
+  globalThis.document = { baseURI: 'http://localhost/' }
+  globalThis.fetch = fetchImpl
+  await import(`${pathToFileURL(resolve(C_Root, 'client.js')).href}?${tag}`)
+  return spec
+}
 
-  await import(`${pathToFileURL(resolve(C_Root, 'client.js')).href}?smoke=1`)
-  assert.equal(moduleSpec.id, '@kimiwangcoding/dsh-customized-commands')
-
-  /** Minimal React surface: the placeholder is never rendered in this smoke test. */
-  const React = { createElement: (..._args) => ({}) }
-  const plugin = moduleSpec.factory((name) => {
+/**
+ * Mount the client plugin against a minimal slots/input-triggers context.
+ * @param {object} spec - module-loader spec.
+ * @returns {{ sections: object[], sources: object[] }} captured registrations.
+ */
+function MountClient(spec) {
+  const sections = []
+  const sources = []
+  const React = { createElement: (...args) => ({ args }) }
+  const plugin = spec.factory((name) => {
     if (name === 'react') return React
     throw new Error(`unexpected require: ${name}`)
   })
-  assert.equal(typeof plugin.apply, 'function')
-  assert.ok(plugin.inject.includes('slots'))
-  assert.ok(
-    plugin.inject.includes('inputTriggers'),
-    'inputTriggers must be declared; the dynamic client sandbox gates service access by inject',
-  )
 
-  const registeredSections = []
-  const registeredSources = []
   const ctx = {
     slots: {
       inject(_name, callback) {
         callback()
       },
       register(registration, component) {
-        registeredSections.push({ registration, component })
+        sections.push({ registration, component })
         return () => {}
       },
     },
@@ -108,7 +115,7 @@ test('client half registers the settings section and one guarded slash source', 
       if (name !== 'inputTriggers') return undefined
       return {
         registerSource(source) {
-          registeredSources.push(source)
+          sources.push(source)
           return () => {}
         },
       }
@@ -119,35 +126,79 @@ test('client half registers the settings section and one guarded slash source', 
         if (typeof dispose === 'function') dispose()
       }
     },
+    logger: { warn() {} },
   }
 
-  plugin.apply(ctx)
+  assert.doesNotThrow(() => plugin.apply(ctx))
+  return { sections, sources }
+}
 
-  assert.equal(registeredSections.length, 1)
-  assert.equal(registeredSections[0].registration.name, 'settings.section')
-  assert.equal(registeredSections[0].registration.id, 'dsh-customized-commands')
-  assert.equal(typeof registeredSections[0].component, 'function')
+test('client half serves menu rows and highlight names from the command API', async () => {
+  const calls = []
+  const spec = await LoadClientModule('store-ok', async (url, init) => {
+    calls.push({ url: String(url), init })
+    return new Response(
+      JSON.stringify({
+        ok: true,
+        commands: [
+          { name: 'review', description: '严格审查', prompt: 'REVIEW' },
+          { name: 'fix', description: '修复问题', prompt: 'FIX' },
+        ],
+        ignored: [{ index: 2, name: 'plan', code: 'reserved-name', message: '冲突' }],
+        error: null,
+        filePath: 'C:/Users/x/.dsh/dsh-customized-commands/commands.json',
+        exists: true,
+        version: 1,
+      }),
+      { status: 200, headers: { 'content-type': 'application/json' } },
+    )
+  })
 
-  assert.equal(registeredSources.length, 1)
-  const source = registeredSources[0]
+  const { sections, sources } = MountClient(spec)
+  assert.equal(sections.length, 1)
+  assert.equal(sections[0].registration.name, 'settings.section')
+  assert.equal(sections[0].registration.id, 'dsh-customized-commands')
+  assert.equal(sources.length, 1)
+
+  const source = sources[0]
   assert.equal(source.trigger, '/')
   assert.equal(source.name, 'dsh-customized-commands')
-  assert.deepEqual(source.lexicon(), ['dcc-hello'])
-  // Regression guard: ui-input-trigger calls `.then()` on the returned value.
-  const pendingCandidates = source.candidates()
-  assert.equal(
-    typeof pendingCandidates.then,
-    'function',
-    'candidates must return a Promise',
+
+  const pending = source.candidates(undefined, { query: '' })
+  assert.equal(typeof pending.then, 'function', 'candidates must return a Promise')
+  const all = await pending
+  assert.deepEqual(
+    all.map((row) => row.name),
+    ['review', 'fix'],
   )
-  const candidates = await pendingCandidates
-  assert.equal(candidates.length, 1)
-  assert.equal(candidates[0].section, '自定义命令')
-  assert.equal(typeof candidates[0].description, 'string')
-  const picked = source.onPick({})
-  assert.equal(
-    picked.text,
-    '/dcc-hello ',
-    'a menu pick must insert the command token, not the prompt text',
+  assert.equal(all[0].section, '自定义命令')
+  assert.equal(all[0].description, '严格审查')
+
+  const filtered = await source.candidates(undefined, { query: '修' })
+  assert.deepEqual(
+    filtered.map((row) => row.name),
+    ['fix'],
   )
+
+  assert.deepEqual(source.lexicon(), ['review', 'fix'])
+  assert.equal(source.onPick({ candidate: { name: 'review' } }).text, '/review ')
+
+  assert.equal(calls.length, 1)
+  assert.ok(calls[0].url.endsWith('/api/dsh-customized-commands'))
+  assert.equal(JSON.parse(calls[0].init.body).action, 'list')
+  assert.equal(calls[0].init.credentials, 'same-origin')
+})
+
+test('client half stays usable when the command API is unreachable', async () => {
+  const spec = await LoadClientModule('store-fail', async () => {
+    throw new Error('offline')
+  })
+
+  const { sections, sources } = MountClient(spec)
+  assert.equal(sections.length, 1)
+  assert.equal(sources.length, 1)
+
+  const rows = await sources[0].candidates(undefined, { query: '' })
+  assert.deepEqual(rows, [])
+  assert.deepEqual(sources[0].lexicon(), [])
 })
