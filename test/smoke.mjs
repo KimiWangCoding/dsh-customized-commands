@@ -43,10 +43,26 @@ test('manifest and display resources are present and valid', () => {
   assert.match(patch, /insert:/u)
 })
 
-test('host half exports a side-effect free apply()', async () => {
+test('host half exports apply() and registers the pre-step listener', async () => {
   const hostModule = await import(pathToFileURL(resolve(C_Root, 'index.js')).href)
   assert.equal(typeof hostModule.apply, 'function')
-  assert.doesNotThrow(() => hostModule.apply())
+
+  const events = []
+  const fakeCtx = {
+    on(eventName, _listener) {
+      events.push(eventName)
+      return () => {}
+    },
+    get() {
+      return undefined
+    },
+    inject(_deps, _callback) {
+      return () => {}
+    },
+    logger: { warn() {} },
+  }
+  assert.doesNotThrow(() => hostModule.apply(fakeCtx))
+  assert.deepEqual(events, ['agent/pre-step'])
 })
 
 test('client half registers the settings section and one guarded slash source', async () => {
