@@ -28,9 +28,6 @@
     "README.md",
     "LICENSE"
   ],
-  "scripts": {
-    "test": "node test/all.mjs"
-  },
   "dsh": {
     "bundle": {
       "patch": "./cordis.patch.yml"
