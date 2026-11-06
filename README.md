@@ -20,8 +20,8 @@ DeepSeek Harness 插件：自定义以 `/` 开头的命令，在 prompt 中键�
 
 | 阶段 | 内容 | 状态 |
 |---|---|---|
-| S0 | 工程骨架（Git、manifest、locale、icon、占位设置页、冒烟触发源） | 进行中 / 待验证 |
-| S1 | Host 存储层与展开核心 | 待开始 |
+| S0 | 工程骨架（Git、manifest、locale、icon、占位设置页、冒烟触发源） | 已完成 |
+| S1 | Host 存储层与展开核心 | 已完成（待测试） |
 | S2 | Host HTTP API 与发送前展开 | 待开始 |
 | S3 | Client 数据层与 `/` 触发源 | 待开始 |
 | S4 | 回车后替换（发送路径） | 待开始 |
@@ -37,11 +37,23 @@ dsh-customized-commands/
 ├─ cordis.patch.yml      # Loader 插入行
 ├─ index.js              # Host 半
 ├─ client.js             # 浏览器半（__ModuleLoader__ 工厂）
+├─ lib/
+│  ├─ command-store.js   # commands.json 读写、校验、备份、损坏保护
+│  └─ expander.js        # /xxx 扫描与 prompt 展开（纯函数）
+├─ test/                 # 单测（入口 test/all.mjs）
 ├─ locale/               # 插件清单文案（zh / en）
 ├─ icon.svg              # 插件图标
 ├─ dsh-tasks.md          # 任务清单与验收标准
 └─ README.md
 ```
+
+## 本地测试
+
+```
+node test/all.mjs
+```
+
+> 沙箱环境下不要使用 `node --test`（test runner 会 spawn 子进程并触发 EPERM）；直接运行 `test/all.mjs` 即可在进程内执行全部用例。
 
 ## 安装
 

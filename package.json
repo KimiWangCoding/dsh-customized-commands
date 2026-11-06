@@ -15,11 +15,15 @@
   "files": [
     "index.js",
     "client.js",
+    "lib",
     "cordis.patch.yml",
     "locale/*.json",
     "icon.svg",
     "README.md"
   ],
+  "scripts": {
+    "test": "node test/all.mjs"
+  },
   "dsh": {
     "bundle": {
       "patch": "./cordis.patch.yml"

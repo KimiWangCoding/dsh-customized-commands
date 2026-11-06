@@ -13,3 +13,6 @@ commands.json.broken-*
 .DS_Store
 Thumbs.db
 *.log
+
+# test sandbox (created and removed by the test suite)
+test/.tmp/
