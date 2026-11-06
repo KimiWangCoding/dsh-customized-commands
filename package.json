@@ -1,9 +1,15 @@
 {
   "name": "@kimiwangcoding/dsh-customized-commands",
-  "version": "0.1.0",
-  "private": true,
+  "version": "1.0.0",
   "description": "User-defined /xxx slash commands for DeepSeek Harness that expand into full prompts on Enter.",
   "license": "MIT",
+  "author": "KimiWangCoding",
+  "keywords": [
+    "dsh",
+    "deepseek-harness",
+    "plugin",
+    "slash-commands"
+  ],
   "type": "module",
   "main": "index.js",
   "exports": {
@@ -19,7 +25,8 @@
     "cordis.patch.yml",
     "locale/*.json",
     "icon.svg",
-    "README.md"
+    "README.md",
+    "LICENSE"
   ],
   "scripts": {
     "test": "node test/all.mjs"
