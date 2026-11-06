@@ -1,0 +1,15 @@
+# dependencies and build output (this bundle has no build step)
+node_modules/
+dist/
+
+# local runtime data and backups must never be committed
+commands.json
+commands.json.bak-*
+commands.json.broken-*
+
+# editor and OS noise
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.log

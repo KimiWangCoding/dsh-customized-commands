@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="Custom commands">
+  <rect width="64" height="64" rx="14" fill="#1f6feb"/>
+  <path d="M40 13 L26 51" stroke="#ffffff" stroke-width="7" stroke-linecap="round"/>
+  <rect x="13" y="23" width="11" height="5" rx="2.5" fill="#bcd7ff"/>
+  <rect x="13" y="34" width="7" height="5" rx="2.5" fill="#bcd7ff"/>
+</svg>

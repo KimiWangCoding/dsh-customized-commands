@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Custom commands",
+    "description": "Define your own /xxx slash commands that expand into a full prompt on Enter."
+  }
+}

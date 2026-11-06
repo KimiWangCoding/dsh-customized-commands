@@ -1,0 +1,8 @@
+# dsh-customized-commands: user-defined slash commands that expand into prompt text.
+#
+# The bundle inserts one Host row. The browser half is declared through
+# `dsh.client` in package.json and is discovered from the same package.
+- insert:
+    - id: dsh-customized-commands
+      name: '@kimiwangcoding/dsh-customized-commands'
+      config: {}
